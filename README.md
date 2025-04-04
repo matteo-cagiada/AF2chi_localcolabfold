@@ -1,37 +1,35 @@
-# af2chi patch code for localcolabfold
+# AF2χ for localColabFold
 
-The code in this repository converts a vanilla version of localcolabfold (link) to the AF2chi version.
 
-To patch the code, run the script pather.py, with the location of your localcolabfold installation. The patcher will take care of replace the necessary files
-AF2chi implementation code for localColabFold
-# 🏗 Project Name
+## 📝 About
+Implementation of AF2χ using localColabfold as base code for AF2. AF2χ uses AlphaFold2 and its internal side-chain representations to predict side-chain χ-angle distributions and generates structural ensembles around the predicted AF2 structure
+The in this repository download and patch localColabfold (link) to the AF2chi version.
 
-## 📝 Description
 
-The code in this repository download and patch localColabfold (link) to the AF2chi version.
-
-- What does this project do?
-- Why was it created?
-- Any key highlights?
+This repository implements AF2χ by patching the localColabFold code, adding the extra set of AF2χ to the original localColabFold implementation.
 
 ---
 
 ## ⚙️ Installation
 
-Follow these steps to install and set up the project:
+AF2χ is currently available for the linux distribution of localColabFold.
+
+To install and set up the AF2χ@localColabfold follow these step:
 
 ```sh
 # Clone this repository
-git clone https://github.com/yourusername/repository.git
+git clone https://github.com/matteo-cagiada/af2chi_localcolabfold.git
 
 # Navigate into the directory
-cd repository
+cd af2chi_localcolabfold
 
-# Install dependencies (Python example)
-pip install -r requirements.txt
+#Use install_colabbatch_linux.sh script to install localColabFold. This is a copy of the installation script from localcolabfold repository, with a couple of modified dependencies.
+./install_colabbatch_linux.sh
+
+# Use the patcher on the installed localColabFold version
+./patcher_colabfold_linux.sh
 ```
-
-For other dependencies or configurations, refer to the documentation.
+Extra notes here
 
 ---
 
