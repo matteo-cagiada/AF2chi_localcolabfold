@@ -10,26 +10,54 @@ This repository implements AF2χ by patching the localColabFold code, adding the
 
 ---
 
-## ⚙️ Installation
+AF2χ is currently available for the Linux distribution of localColabFold.
 
-AF2χ is currently available for the linux distribution of localColabFold.
-
-To install and set up the AF2χ@localColabfold follow these step:
+### 🔹 Installing AF2χ@localColabFold
+Follow these steps to install and set up AF2χ:
 
 ```sh
-# Clone this repository
+# Clone the repository
 git clone https://github.com/matteo-cagiada/af2chi_localcolabfold.git
 
 # Navigate into the directory
 cd af2chi_localcolabfold
+```
 
-#Use install_colabbatch_linux.sh script to install localColabFold. This is a copy of the installation script from localcolabfold repository, with a couple of modified dependencies.
+### 🔹 Installing localColabFold
+First, localColabFold must be installed. It is recommended to have **CUDA 12.4** installed. If you encounter dependency issues, refer to the [localColabFold repository](https://github.com/YoshitakaMo/localcolabfold) for troubleshooting.
+
+```sh
+# Use install_colabbatch_linux.sh to install localColabFold
 ./install_colabbatch_linux.sh
+```
+This script is a modified version of the installation script from the localColabFold repository, with adjustments for dependency compatibility.
 
-# Use the patcher on the installed localColabFold version
+### 🔹 Installation Directory
+
+**By default,** `install_colabbatch_linux.sh` installs localColabFold in the directory where the script is executed. If you prefer a different location, move the script to your desired directory before running it.
+
+### 🔹 Applying the Patch
+
+#### ✅ If localColabFold is installed in the default `af2chi_localcolabfold` directory:
+```sh
+# Apply the patch to the default installed localColabFold version
 ./patcher_colabfold_linux.sh
 ```
-Extra notes here
+
+#### ✅ If localColabFold is installed in a different directory:
+Run the patcher script and provide the path to the localColabFold Conda installation (colabfold-conda) as an argument:
+```sh
+# Apply the patch to localColabFold in a custom location
+./patcher_colabfold_linux.sh <path-to-colab-conda>
+```
+
+### 🔹 Example Usage
+If localColabFold is installed in `/users/your_username/home/bin/`, the command would be:
+```sh
+./patcher_colabfold_linux.sh /users/your_username/home/bin/localcolabfold/colabfold-conda
+```
+
+The patcher will replace in seconds the file in the localcolabfold installation
 
 ---
 
@@ -51,27 +79,27 @@ Example output:
 For more examples, check out the [Usage Guide](#).
 
 ---
-
 ## 🛠 Troubleshooting
 
-### Common Issues & Fixes  
+### 🔹 Common Issues & Fixes
 
-#### ❌ Issue: Dependency errors when running the project  
-✅ **Fix:** Ensure you have the correct Python version:  
+#### ❌ Issue: GCC Library Errors When Running localColabFold
+✅ **Fix:** Ensure that the `colabfold-conda` library path is included in your `LD_LIBRARY_PATH` environment variable. To check, print its current value:
 ```sh
-python --version  # Should be Python 3.x
+echo $LD_LIBRARY_PATH
 ```
-If issues persist, try reinstalling dependencies:  
+If the path is missing, prepend the library location with:
 ```sh
-pip install --upgrade -r requirements.txt
+export LD_LIBRARY_PATH=/<path_to_your_installation>/localcolabfold/colabfold-conda/lib/
 ```
+If issues persist, you may need to install the correct version of **GCC** (the missing library is usually specified in the error message). For more information, refer to the [GCC installation guide](https://gcc.gnu.org/install/).
 
-#### ❌ Issue: Permission errors on Unix-based systems  
-✅ **Fix:**  
+#### ❌ Issue: GPU Memory Conflicts with Multiple GPUs / Defining a Specific GPU for AF2χ
+✅ **Fix:** By default, **AF2χ** (via localColabFold) attempts to utilize all available GPUs, which can cause issues on certain systems. To ensure AF2χ runs on a specific GPU, use the following commands before execution:
 ```sh
-chmod +x script.py  # Grant execution permissions
+export CUDA_DEVICE_ORDER="PCI_BUS_ID"
+export CUDA_VISIBLE_DEVICES=N  # Replace N with the GPU index (e.g., 0, 1, etc.)
 ```
-
 ---
 
 ## 🙌 Acknowledgements  
