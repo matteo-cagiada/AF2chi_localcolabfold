@@ -63,17 +63,25 @@ The patcher will replace in seconds the file in the localcolabfold installation
 
 ## 🚀 Examples
 
-Here’s how to use this project:
+Here’s how to use the code:
+
+Load the colabfold-conda enviroment
 
 ```sh
-# Run the main script
-python script.py --option value
+conda activate  /<path_to_folder>/localcolabfold/colabfold-conda
 ```
+
+Run the main script:
+
+```sh
+colabfold_batch --templates --custom-template-path ../templates/ --model-order 1,2 --msa-mode single_sequence --af2chi  ../input.fasta ./out_folder
+```
+
+More explanation soon...
 
 Example output:
 ```plaintext
-[INFO] Processing data...
-[SUCCESS] Output saved to results/
+to add
 ```
 
 For more examples, check out the [Usage Guide](#).
