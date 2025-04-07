@@ -21,7 +21,7 @@ echo -e "\e[36m==========================================\e[0m"
 
 
 CURRENT_DIR=$(pwd)
-DEFAULT_DESTINATION="$CURRENT_DIR/localColabFold/colabfold-conda"
+DEFAULT_DESTINATION="$CURRENT_DIR/localcolabfold/colabfold-conda"
 
 destination_folder="${1:-$DEFAULT_DESTINATION}"
 
