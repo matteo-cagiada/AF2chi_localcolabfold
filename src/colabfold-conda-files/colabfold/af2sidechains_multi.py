@@ -42,6 +42,7 @@ from alphafold.model.geometry.rigid_matrix_vector import Rigid3Array
 from alphafold.common import residue_constants
 import colabfold.relax_sc as relax
 import warnings
+from colabfold.download import default_data_dir
 
 warnings.filterwarnings("ignore", category=RuntimeWarning, message="os.fork() was called")
 
@@ -68,40 +69,40 @@ def get_config(
     config.n_struct_ensemble = int(n_struct_ensemble)
     config.pool_cpus = int(os.cpu_count() / 4)
 
+    #set default af2chi param dir
+    default_af2chi_param_dir = os.path.join(default_data_dir, "af2chi-params")
+    
     if path_rot_lib != None:
         config.rot_lib = pd.read_csv(path_rot_lib, index_col=0)
     else:
         config.rot_lib = pd.read_csv(
-            "/projects/prism/people/bqm193/env/colabfold_fold/lib/python3.7/site-packages/colabfold/Top8000_rebinned_all_chi_distributions.csv",
+                os.path.join(default_af2chi_param_dir,"Top8000_rebinned_all_chi_distributions.csv"),
             index_col=0,
-        )  # github to update
+        )
 
     if path_rot_sigmas != None:
         with open(path_rot_sigmas) as f:
             config.sigmas_restype = json.load(f)
     else:
         with open(
-            "/projects/prism/people/bqm193/env/colabfold_fold/lib/python3.7/site-packages/colabfold/Top8000_all_chi_sigmas.json"
+            os.path.join(default_af2chi_param_dir,"Top8000_all_chi_sigmas.json")
         ) as f:
-            config.sigmas_restype = json.load(f)  ## github to update
+            config.sigmas_restype = json.load(f)
 
     if path_chi_checks != None:
         config.res_has_chi = pd.read_csv(path_chi_checks, index_col=0)
     else:
         config.res_has_chi = pd.read_csv(
-            "/projects/prism/people/bqm193/env/colabfold_fold/lib/python3.7/site-packages/colabfold/res_chis.csv",
+            os.path.join(default_af2chi_param_dir,"res_chis.csv"),
             index_col=0,
-        )  # github to update
+        )
 
     config.dict_chi2layer = {
         "chi1": 3,
         "chi2": 4,
-        "chi3": 5,
-        "chi4": 6,
     }  # chi1 is the 4th dihedral angle in the internal layer, the higher chis are the higher dimensions layers, layers are 0-indexed
 
     return config
-
 
 def class_to_np(c):
     """Recursively changes jax arrays to numpy arrays."""

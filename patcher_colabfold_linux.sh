@@ -21,7 +21,7 @@ echo -e "\e[36m==========================================\e[0m"
 
 
 CURRENT_DIR=$(pwd)
-DEFAULT_DESTINATION="$CURRENT_DIR/localcolabfold/colabfold-conda"
+DEFAULT_DESTINATION="$CURRENT_DIR/localcolabfold"
 
 destination_folder="${1:-$DEFAULT_DESTINATION}"
 
@@ -63,7 +63,7 @@ echo -e "\e[34m[INFO]\e[0m Destination path: ${destination_folder}"
 cd "$destination_folder" || { echo -e "\e[31m[ERROR]\e[0m Failed to enter destination directory"; exit 1; }
 
 # Find the correct Python version directory dynamically
-python_folder=$(find "$destination_folder/lib" -maxdepth 1 -type d -name "python*" | sort -rV | head -n 1)
+python_folder=$(find "$destination_folder/colabfold-conda/lib" -maxdepth 1 -type d -name "python*" | sort -rV | head -n 1)
 
 # Check if a Python directory was found
 if [ -z "$python_folder" ]; then
@@ -83,23 +83,48 @@ fi
 
 echo -e "\e[34m[INFO]\e[0m Using site-packages folder: $site_packages_folder"
 
-# Iterate through subdirectories in the source folder
-for subdir in "$source_folder"/*/; do
-    subdir_name=$(basename "$subdir")
-    dest_subdir="$site_packages_folder/$subdir_name"
+# ================================================
+# Handle colabfold-conda installation: patch existing subdirectories
+# ================================================
+# Check if the colabfold-conda directory exists
 
-    echo -e "\e[34m[INFO]\e[0m Checking: ${subdir_name}"
+colabfold_conda_folder="$source_folder/colabfold-conda-files"
+if [ -d "$colabfold_conda_folder" ]; then
+    echo -e "\e[34m[INFO]\e[0m Processing colab-conda folder: $colabfold_conda_folder"
+    for subdir in "$colabfold_conda_folder"/*/; do
+        subdir_name=$(basename "$subdir")
+        dest_subdir="$site_packages_folder/$subdir_name"
 
-    # Only process if the corresponding subdirectory exists in the destination
-    if [ -d "$dest_subdir" ]; then
-        echo -e "\e[32m[SUCCESS]\e[0m Processing directory: $subdir_name"
-        
-        # Copy files and directories recursively
-        cp -r "$subdir"* "$dest_subdir/"
-        echo -e "\e[32m[SUCCESS]\e[0m Copied contents of $subdir_name to $dest_subdir"
-    else
-        echo -e "\e[33m[WARNING]\e[0m Skipping $subdir_name: Not found in destination"
-    fi
-done
+        echo -e "\e[34m[INFO]\e[0m [CF-CONDA] Checking: ${subdir_name}"
+
+        if [ -d "$dest_subdir" ]; then
+            echo -e "\e[32m[SUCCESS]\e[0m [CF-CONDA] Patching directory: $subdir_name"
+            cp -r "${subdir}"* "${dest_subdir}/"
+            echo -e "\e[32m[SUCCESS]\e[0m [CF-CONDA] Copied contents to $dest_subdir"
+        else
+            echo -e "\e[33m[WARNING]\e[0m [CF-CONDA] Skipping $subdir_name: Not found in destination"
+        fi
+    done
+else
+    echo -e "\e[33m[WARNING]\e[0m colabfold-conda folder not found: $colabfold_conda_folder"
+fi
+
+# ================================================
+# Handle params: copy full directory into localcolabfold/colabfold
+# ================================================
+
+af2chi_params_folder="$source_folder/af2chi-params"
+if [ -d "$af2chi_params_folder" ]; then
+    echo -e "\e[34m[INFO]\e[0m Processing params folder: $af2chi_params_folder"
+    
+    dest_param_folder="$destination_folder/colabfold"
+
+    cp -r "$af2chi_params_folder" "$dest_param_folder"
+    echo -e "\e[32m[SUCCESS]\e[0m [BETA] Copied $af2chi_params_folder to $dest_param_folder"
+else
+    echo -e "\e[33m[WARNING]\e[0m folder not found: $af2chi_params_folder"
+fi
 
 echo -e "\e[32m[SUCCESS]\e[0m All files copied successfully."
+
+
