@@ -120,7 +120,7 @@ if [ -d "$af2chi_params_folder" ]; then
     dest_param_folder="$destination_folder/colabfold"
 
     cp -r "$af2chi_params_folder" "$dest_param_folder"
-    echo -e "\e[32m[SUCCESS]\e[0m [BETA] Copied $af2chi_params_folder to $dest_param_folder"
+    echo -e "\e[32m[SUCCESS]\e[0m [PARAMS] Copied $af2chi_params_folder to $dest_param_folder"
 else
     echo -e "\e[33m[WARNING]\e[0m folder not found: $af2chi_params_folder"
 fi
