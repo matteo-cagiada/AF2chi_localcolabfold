@@ -45,7 +45,7 @@ This script is a modified version of the installation script from the localColab
 ```
 
 #### ✅ If localColabFold is installed in a different directory:
-Run the patcher script and provide the path to the localColabFold Conda installation (colabfold-conda) as an argument:
+Run the patcher script and provide the path to the localColabFold folder (localcolabfold) as an argument:
 ```sh
 # Apply the patch to localColabFold in a custom location
 ./patcher_colabfold_linux.sh <path-to-colab-conda>
@@ -54,10 +54,10 @@ Run the patcher script and provide the path to the localColabFold Conda installa
 ### 🔹 Example Usage
 If localColabFold is installed in `/users/your_username/home/bin/`, the command would be:
 ```sh
-./patcher_colabfold_linux.sh /users/your_username/home/bin/localcolabfold/colabfold-conda
+./patcher_colabfold_linux.sh /users/your_username/home/bin/localcolabfold/
 ```
 
-The patcher will replace in seconds the file in the localcolabfold installation
+The patcher will replace in seconds the file in the localcolabfold installation and add the AF2χ data dependencies
 
 ---
 
