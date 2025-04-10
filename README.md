@@ -10,7 +10,7 @@ The code in this repository allows you to implement AF2χ by downloading localCo
 
 ----
 
-AF2χ is currently available for the Linux distribution of localColabFold, using a stable forked repository of ColabFold [v1.5.5](https://github.com/matteo-cagiada/ColabFold-sc) (`commit: fdf3b23` - July 2024) and Alphafold [2.3.7](https://pypi.org/project/alphafold-colabfold).
+AF2χ is currently available for the Linux distribution of localColabFold, using a stable forked repository of ColabFold [v1.5.5](https://github.com/matteo-cagiada/ColabFold-sc) (`commit: fdf3b235b88746681c46ea12bcded76ecf8e1f76` - July 2024) and Alphafold [2.3.7](https://pypi.org/project/alphafold-colabfold).
 
 ## ⚙️	Installing AF2χ
 
@@ -235,6 +235,10 @@ export CUDA_VISIBLE_DEVICES=N  # Replace N with the GPU index (e.g., 0, 1, etc.)
 ```
 ----
 
+## ➡️  Coming soon:
+- Refined complex prediction (formatted output)
+
+---- 
 ## 📝 Reference this work:
 
 If you use our model please cite:
