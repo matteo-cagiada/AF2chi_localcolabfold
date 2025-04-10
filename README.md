@@ -4,7 +4,7 @@
 ## 📝 About
 Implementation of AF2χ ([Cagiada M., Thomasen F.E., et al., bioRxiv 2025](https://www.biorxiv.com)) using [localColabFold](https://github.com/YoshitakaMo/localcolabfold) as base code for AF2 ([Jumper J., et al., Nature 2021](https://www.nature.com/articles/s41586-021-03819-2)). 
 
-AF2χ is a tool to predict side-chain heterogeneity using AlphaFold2 and its internal side-chain representations. AF2χ outputs side-chain χ-angle distributions and structural ensembles around the predicted AF2 predicted structure.
+AF2χ is a tool to predict side-chain heterogeneity using AlphaFold2 and its internal side-chain representations. AF2χ outputs side-chain χ-angle distributions and structural ensembles around the predicted AF2 structure.
 
 The code in this repository allows you to implement AF2χ by downloading localColabFold, patching its code, and adding the additional AF2χ functionality to the original localColabFold implementation.
 
