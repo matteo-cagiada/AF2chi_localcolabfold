@@ -275,7 +275,7 @@ We acknowledge access to computational resources via a grant from the Carlsberg 
 This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
 
 ## 📬 Contact  
-For questions or support with this repository, please use the GitHub issue tab or reach out us via email:  
+For questions or support with this repository, please use the GitHub issue tab or reach out to us via email:  
 
 📧 Matteo Cagiada: [matteo.cagiada@bio.ku.dk](mailto:matteo.cagiada@bio.ku.dk)
 
