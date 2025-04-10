@@ -279,6 +279,6 @@ For questions or support with this repository, please use the GitHub issue tab o
 
 📧 Matteo Cagiada: [matteo.cagiada@bio.ku.dk](mailto:matteo.cagiada@bio.ku.dk)
 
-📧 Emil Thomasen [fe.thomasen@bio.ku.dk](mailto:fe.thomasen@bio.ku.dk)  
+📧 Emil Thomasen: [fe.thomasen@bio.ku.dk](mailto:fe.thomasen@bio.ku.dk)  
 
-📧 Kresten Lindorff-Larsen [lindorff@bio.ku.dk](mailto:lindorff@bio.ku.dk)  
+📧 Kresten Lindorff-Larsen: [lindorff@bio.ku.dk](mailto:lindorff@bio.ku.dk)  
