@@ -1977,7 +1977,7 @@ def main():
     relax_group.add_argument(
         "--relax-stiffness",
         type=float,
-        default=10.0,
+        default=0.5, #sc 10.0,
         help="Stiffness parameter for relaxation.",
     )
     relax_group.add_argument(
