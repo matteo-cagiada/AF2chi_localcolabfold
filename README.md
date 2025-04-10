@@ -22,7 +22,7 @@ git clone https://github.com/matteo-cagiada/af2chi_localcolabfold.git
 
 cd af2chi_localcolabfold
 ```
-As first, you need to install a localColabFold version compatible with AF2χ. We provide an installation script `install_colabbatch_linux.sh` in the repository, which installed our tested version of localColabFold. The script is a modified version of the original installation script from the localColabFold repository, with adjustments on dependency to maximise compatibility.
+Next, you need to install a localColabFold version compatible with AF2χ. We provide an installation script `install_colabbatch_linux.sh` in the repository, which installs our tested version of localColabFold. The script is a modified version of the original installation script from the localColabFold repository, with adjustments to dependencies to maximise compatibility.
 
 **N.B.:** LocalColabFold works with  **CUDA >= 12.0**. If you encounter dependency issues, refer to the [localColabFold](https://github.com/YoshitakaMo/localcolabfold) documentation for troubleshooting.
 ```sh
@@ -57,7 +57,7 @@ If localColabFold is installed in `/users/your_username/home/bin/`, the command 
 ./patcher_colabfold_linux.sh /users/your_username/home/bin/localcolabfold/
 ```
 
-The patcher will replace in seconds the file in the localcolabfold installation and add the AF2χ data dependencies and parameters.
+The patcher will replace the file in the localcolabfold installation and add the AF2χ data dependencies and parameters.
 
 ----
 
@@ -74,7 +74,7 @@ You need first to make the inference command `colabfold_batch` available: to do 
 # e.g. export PATH="/<path_to_folder>/localcolabfold/colabfold-conda/bin:$PATH"
 export PATH="/<path_to_folder>/localcolabfold/colabfold-conda/bin:$PATH"
 ```
-2. activate the localColabFold enviroment directly with conda :
+2. or activate the localColabFold enviroment directly with conda :
 ```sh
 conda activate  /<path_to_folder>/localcolabfold/colabfold-conda
 ```
@@ -83,7 +83,7 @@ You can now run the main localColabFold inference script `colabfold_batch`
 
 ➡️ Running inference
 
-`colabfold_batch` provides a multiplea of options, to see all the options availble use the help command:
+`colabfold_batch` provides many options. To see all the options availble use the help command:
 
 ```sh
 colabfold_batch --templates --custom-template-path ../templates/ --model-order 1,2 --msa-mode single_sequence --af2chi  ../input.fasta ./out_folder
