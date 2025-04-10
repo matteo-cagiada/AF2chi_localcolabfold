@@ -83,7 +83,7 @@ You can now run the main localColabFold inference script `colabfold_batch`
 
 ➡️ Running inference
 
-`colabfold_batch` provides many options. To see all the options availble use the help command:
+`colabfold_batch` provides many options. To see all the options available use the help command:
 
 ```sh
 colabfold_batch --help
