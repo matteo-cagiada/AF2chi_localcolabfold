@@ -86,7 +86,7 @@ You can now run the main localColabFold inference script `colabfold_batch`
 `colabfold_batch` provides many options. To see all the options availble use the help command:
 
 ```sh
-colabfold_batch --templates --custom-template-path ../templates/ --model-order 1,2 --msa-mode single_sequence --af2chi  ../input.fasta ./out_folder
+colabfold_batch --help
 ```
 AF2χ options are display in the AF2chi section, here reported
 
@@ -103,7 +103,7 @@ AF2chi:
   --n-struct-ensemble N_STRUCT_ENSEMBLE
                         number of structures to generate in the af2chi ensemble (default: 100)
 ```
-The different options allow you to implement the AF2χ pipeline either partially or fully. You can also adjust several parameters, including the number of output structures in the final ensemble.
+The different options allow you to run the AF2χ pipeline either partially or fully. You can also adjust several parameters, including the number of output structures in the final ensemble.
 
 ⚠️ **Note:** AF2χ has been tested exclusively on monomeric systems. However, it can also be applied to selected complexes. To run AF2χ on complexes, refer to the ColabFold documentation for instructions on how to input complex structures into the inference pipeline.
 
@@ -158,7 +158,7 @@ colabfold_batch --af2chi  --templates --custom-template-path ../templates/  \
 
 ## 🧬	 Output of AF2χ
 
-AF2χ creates χ-angle distributions and then samples from these distributions to generate a structural ensemble.
+AF2χ generates χ-angle distributions and then samples from these distributions to generate a structural ensemble.
 
 Along with the localColabFold output, the standard output of AF2χ includes:
 
@@ -208,7 +208,7 @@ Additional AF2χ options available during inference may modify or remove some of
 
 - `--no-ensemble` and `--no-save-distributions` will remove both the final ensemble and the JSON file from the output.
   
-- `--no-reweight` will generate χ-angle populations using the prior distribution, returning these in the dictionary: `{fasta_name}_rank_001_sc_distributions_prior.json`, and generating the structural ensemble using the prior distributions.
+- `--no-reweight` will generate χ-angle populations using the prior distribution, returning these in the dictionary: `{fasta_name}_rank_001_sc_distributions_prior.json`, and generate the structural ensemble using the prior distributions.
 
 ----
 
