@@ -18,9 +18,9 @@ AF2χ is currently available for the Linux distribution of localColabFold, using
 
 To start, clone the repository on your local machine and navigate in the repository directory:
 ```sh
-git clone https://github.com/matteo-cagiada/af2chi_localcolabfold.git
+git clone https://github.com/matteo-cagiada/AF2chi_localcolabfold.git
 
-cd af2chi_localcolabfold
+cd AF2chi_localcolabfold
 ```
 Next, you need to install a localColabFold version compatible with AF2χ. We provide an installation script `install_colabbatch_linux.sh` in the repository, which installs our tested version of localColabFold. The script is a modified version of the original installation script from the localColabFold repository, with adjustments to dependencies to maximise compatibility.
 
