@@ -67,7 +67,8 @@ def get_config(
     config.thetas = np.geomspace(1, 10000, num=20)
     config.dihedral_angles = [5 + (10 * i) for i in range(36)]
     config.n_struct_ensemble = int(n_struct_ensemble)
-    config.pool_cpus = int(os.cpu_count() / 4)
+    #config.pool_cpus = int(os.cpu_count() / 4)
+    config.pool_cpus = max(os.cpu_count(), int(os.cpu_count() / 4))
 
     #set default af2chi param dir
     default_af2chi_param_dir = os.path.join(default_data_dir, "af2chi-params")
