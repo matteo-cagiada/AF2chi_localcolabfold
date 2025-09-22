@@ -23,4 +23,4 @@ ADD src/af2chi-params ${COLABFOLDDIR}/colabfold/af2chi-params
 # Add symlink for AlphaFold model parameters, colabfold image uses /cache directory for them.
 RUN ln -s /cache/colabfold/params ${COLABFOLDDIR}/colabfold/
 
-ENV MPLBACKEND agg
+ENV MPLBACKEND=agg
