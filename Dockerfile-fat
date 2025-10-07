@@ -1,0 +1,22 @@
+ARG CUDA_VERSION=12.2.2
+ARG COLABFOLD_VERSION=1.5.5
+FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu22.04
+
+
+RUN apt-get update && \
+    apt-get install -y wget && \
+    apt-get clean
+
+RUN mkdir -p /usr/local/src/AF2chi_localcolabfold
+ADD . /usr/local/src/AF2chi_localcolabfold
+
+
+RUN mkdir -p /app && cd /app && \
+    /usr/local/src/AF2chi_localcolabfold/install_colabbatch_linux.sh && \
+    /app/localcolabfold/conda/bin/conda clean --all --yes &&\
+    /app/localcolabfold/colabfold-conda/bin/python3 -m pip cache purge
+RUN cd /usr/local/src/AF2chi_localcolabfold && ./patcher_colabfold_linux.sh /app/localcolabfold
+
+WORKDIR /root
+
+ENV PATH="/app/localcolabfold/colabfold-conda/bin:$PATH"

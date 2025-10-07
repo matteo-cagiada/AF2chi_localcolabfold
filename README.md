@@ -212,6 +212,72 @@ Additional AF2χ options available during inference may modify or remove some of
 
 ----
 
+## 📦 Containerized AF2χ
+
+### 🐳 Build AF2χ docker image
+
+ 1. Make sure that Docker is installed, please follow your operating system instructions
+ 2. Run docker build
+
+```sh
+docker build -t af2chi_localcolabfold:latest .
+```
+
+### Running AF2χ in docker
+
+This command runs AF2χ on an input file `input.fasta` or directory `$INPUT_DIR` and stores the results in `$OUTPUT_DIR`.
+Note that Docker requires that volumes are specified as absolute paths.
+
+The AlphaFold2 parameters should be downloaded and mounted into /cache in the container, in this example command the directory `/path/to/colabfold-cache/cache` is used.
+
+For details, please refer to https://github.com/sokrypton/ColabFold/wiki/Running-ColabFold-in-Docker .
+
+
+docker run --rm \
+    --runtime=nvidia --gpus 1 \
+    --env PYTHONUNBUFFERED=TRUE \
+    -v /path/to/colabfold-cache/cache:/cache \
+    -v "${INPUT_DIR}":/input:ro \
+    -v "${OUTPUT_DIR}":/output \
+    af2chi_localcolabfold:latest \
+    colabfold_batch \
+        --af2chi \
+        /input/input.fasta \
+        /output
+
+
+
+
+### Build Apptainer image
+
+Apptainer image can be built from an existing Docker image.
+
+```
+apptainer build af2chi_localcolabfold_latest.sif  docker-daemon://af2chi_localcolabfold:latest
+```
+
+
+### Running AF2χ in Apptainer
+
+This command runs AF2χ on an input file `input.fasta` or directory `$INPUT_DIR` and stores the results in `$OUTPUT_DIR`.
+Note that Docker requires that volumes are specified as absolute paths.
+
+```
+apptainer run \
+    --nv \
+    --env PYTHONUNBUFFERED=TRUE \
+    -B /path/to/colabfold-cache/cache:/cache \
+    -B "${INPUT_DIR}":/input:ro \
+    -B "${OUTPUT_DIR}":/output \
+    af2chi_localcolabfold_latest.sif \
+    colabfold_batch \
+      --af2chi \
+      /input/input.fasta \
+      /output
+```
+
+----
+
 ## 🛠 Troubleshooting
 
 ### 🔹 Common Issues & Fixes
