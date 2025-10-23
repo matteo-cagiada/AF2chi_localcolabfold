@@ -2123,6 +2123,7 @@ def main():
     af2chi_group.add_argument(
         "--struct-weight", ##sc
         default=0.85,
+        type=float,
         help="run af2sidechains with specified struct-weight (0.85 is default)"
     )
 
