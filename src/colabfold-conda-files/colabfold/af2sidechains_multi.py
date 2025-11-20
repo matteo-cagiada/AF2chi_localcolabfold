@@ -56,6 +56,7 @@ def get_config(
     path_chi_checks: str = None,
     struct_weight: float = 0.85,
     n_struct_ensemble=100,
+    use_gpu_relax: bool = True
 ) -> ConfigDict:
     print(">>>>>>> structure_weight:", struct_weight)
     config = ConfigDict()
@@ -73,6 +74,8 @@ def get_config(
     #set default af2chi param dir
     default_af2chi_param_dir = os.path.join(default_data_dir, "af2chi-params")
     
+    config.use_gpu_relax = use_gpu_relax
+
     if path_rot_lib != None:
         config.rot_lib = pd.read_csv(path_rot_lib, index_col=0)
     else:
@@ -703,7 +706,7 @@ class create_pdb_ensemble:
         angles: jnp.array,
         fitted_pops: dict,
         jobname: str,
-        ensemble: int,
+        ensemble: int
     ) -> bool:
         """Args:
         sequence: list of str, protein sequence
@@ -745,7 +748,7 @@ class create_pdb_ensemble:
             pdb_lines=pdb_lines,
             sampled_angles=sampled_angles,
             config=self.config,
-            use_gpu=True,
+            use_gpu=self.config.use_gpu_relax,
             max_iterations=0,
             stiffness=self.stiffness,
         )  # Emil added sampled_angles pass ## stiffness temporary we need to decide what to do with it
