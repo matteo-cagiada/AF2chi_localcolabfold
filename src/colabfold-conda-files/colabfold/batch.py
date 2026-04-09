@@ -79,6 +79,7 @@ import jax.numpy as jnp
 
 ### import sidechain_module of af2chi
 import colabfold.af2sidechains_multi as af2sidechains_multi #sc
+from colabfold.af2sidechains_multi import TemplateStore #sc
 
 # from jax 0.4.6, jax._src.lib.xla_bridge moved to jax._src.xla_bridge
 # suppress warnings: Unable to initialize backend 'rocm' or 'tpu'
@@ -1297,6 +1298,8 @@ def run(
     no_save_distributions:bool = False, #sc
     struct_weight:float = 0.85, #sc
     n_struct_ensemble:int = 100, #sc
+    custom_prior:str = None, #sc
+    generate_from_templates:bool = False, #sc
     **kwargs
 ):
     # check what device is available
@@ -1512,6 +1515,10 @@ def run(
         except Exception as e:
             logger.exception(f"Could not get MSA/templates for {jobname}: {e}")
             continue
+        
+        # if generate the final ensemble using templates, prepare template store for later use in structure generation and sidechain modeling #sc
+        if generate_from_templates and use_templates: #sc
+            tmpl_store = TemplateStore.build(template_dir = custom_template_path, query_seqs_unique = query_seqs_unique, query_seqs_cardinality = query_seqs_cardinality,is_complex= is_complex) #sc
 
         #######################
         # generate features
@@ -1641,18 +1648,19 @@ def run(
                 continue
 
             if af2chi: #sc
-                sc_backbone = results["sc_backbone"] #sc
-                sc_angles = results["sc_angles"] #sc
+                if generate_from_templates:
+                    sc_backbone = tmpl_store.features['template_all_atom_positions'] #sc
+                    use_ref_pdb = False #sc
+                else:
+                    sc_backbone = results["sc_backbone"] #sc
+                    use_ref_pdb = True #sc
 
-                ## save sc data #sc dev
-                #logger.info(f"Saving sidechain rawdata data for {jobname} : {result_dir.joinpath(jobname)}_rank_001_sc_*.npy") #sc dev
-                #np.save(result_dir.joinpath(jobname + "_rank_001_sc_backbone.npy"), sc_backbone) #sc dev
-                #np.save(result_dir.joinpath(jobname + "_rank_001_sc_angles.npy"), sc_angles) #sc dev
+                sc_angles = results["sc_angles"] #sc
 
                 logger.info(f"Running sidechain populations prediction for {jobname}")
 
                 ###initialize af2chic
-                af2chi_config = af2sidechains_multi.get_config(struct_weight=struct_weight,n_struct_ensemble=n_struct_ensemble) #sc
+                af2chi_config = af2sidechains_multi.get_config(struct_weight=struct_weight,n_struct_ensemble=n_struct_ensemble,use_gpu_relax=use_gpu_relax) #sc
                 af2chis = af2sidechains_multi.af2sidechain_pops(af2chi_config) #sc
 
                 fitted_pops_residues, prior_pops_residues={},{} #sc
@@ -1685,9 +1693,13 @@ def run(
                 logger.info(f"Creating PDB ensemble with sidechain predictions for {jobname}") #sc
 
                 rank1_unrelaxed_path = next((path.resolve() for path in result_files if all(keyword in str(path) for keyword in ['_unrelaxed_rank_001_','.pdb'])), None) #sc
-                ensemble_creator=af2sidechains_multi.create_pdb_ensemble(af2chi_config, results['input_features'],
-                                                                         results['sc_atom_mask'],result_dir,rank1_unrelaxed_path,
-                                                                         is_complex,stiffness=relax_stiffness) #sc
+                ensemble_creator=af2sidechains_multi.create_pdb_ensemble(af2chi_config, 
+                                                                         results,
+                                                                         result_dir,
+                                                                         rank1_unrelaxed_path,
+                                                                         is_complex,
+                                                                         relax_stiffness,
+                                                                         use_ref_pdb) #sc
 
                 if no_ensemble: #sc
                     logger.info(f"Skipping ensemble creation for {jobname}")
@@ -2133,6 +2145,19 @@ def main():
         type=int,
         help="number of structures to generate in the af2chi ensemble"
     )
+    af2chi_group.add_argument(
+        "--custom-prior", ##sc
+        default=None,
+        type=str,
+        help="path to custom distribution to use as prior in af2sidechains"
+    )
+
+    af2chi_group.add_argument(
+        "--generate-from-templates",##sc
+        default=False,
+        action="store_true",
+        help="Use templates to generate backbones for af2chi ensemble.",
+    )
 
     args = parser.parse_args()
 
@@ -2227,6 +2252,8 @@ def main():
         no_reweight=args.no_reweight, ##sc
         struct_weight=args.struct_weight, ##sc
         n_struct_ensemble=args.n_struct_ensemble, ##sc
+        custom_prior=args.custom_prior, ##sc
+        generate_from_templates=args.generate_from_templates, ##sc
     )
 
 if __name__ == "__main__":
