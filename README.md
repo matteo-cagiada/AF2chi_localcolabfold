@@ -23,7 +23,7 @@ AF2χ is currently available for the Linux distribution of localColabFold, using
 | `tools/environment.yml`, `install_af2chi_tools.sh` | small separate environment for the tools |
 | `Dockerfile`, `Dockerfile-fat` | container recipes |
 
-## ✨ What's new (Sept-Oct2026 update)
+## ✨ What's new (Sept-Oct 2026 update)
 
 This release adds three things over the first version of AF2χ:
 
@@ -31,7 +31,7 @@ This release adds three things over the first version of AF2χ:
 
 - **Ensemble-based generation (`--generate-from-templates`).** Instead of building the structural ensemble around a single AF2 backbone, AF2χ can take a *conformational ensemble* of templates and sample backbones from it, reweighting the side-chain distributions on top. This lets you propagate backbone heterogeneity (from MD, NMR models, or multiple crystal forms) into the side-chain ensemble. See the `--af2chi-ensemble` preset below.
 
-- **Stricter clash checking.** Generated structures are now screened with a heavy-atom clash detector that ignores pairs fixed by peptide geometry (1,2 bonds and 1,3 neighbours, including the proline ring) and disulfide-bonded SG pairs, so real side-chain clashes are no longer masked by bonded contacts. The strictness is exposed as `--clash-threshold` (default `0.8`; two atoms clash when their distance is below `FACTOR * (r_i + r_j)`, so a **higher** value is **stricter**). Structures that fail the clash or RMSD filters are discarded and resampled, and the acceptance rate is reported in the log.
+- **Stricter clash checking.** Generated structures are now screened with a more strict heavy-atom clash detector that ignores pairs fixed by peptide geometry (1,2 bonds and 1,3 neighbours, including the proline ring) and disulfide-bonded SG pairs, so real side-chain clashes are no longer masked by bonded contacts.
 
 - **One-flag presets.** `--af2chi-backbone` and `--af2chi-ensemble` expand into the full, tested option sets for the two standard AF2χ configurations. See [Standard configurations](#-standard-configurations).
 
