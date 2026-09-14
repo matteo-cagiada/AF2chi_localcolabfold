@@ -1300,6 +1300,7 @@ def run(
     n_struct_ensemble:int = 100, #sc
     custom_prior:str = None, #sc
     generate_from_templates:bool = False, #sc
+    clash_threshold_af2chi : float = 0.8, #sc
     **kwargs
 ):
     # check what device is available
@@ -1699,12 +1700,12 @@ def run(
                                                                          rank1_unrelaxed_path,
                                                                          is_complex,
                                                                          relax_stiffness,
-                                                                         use_ref_pdb) #sc
+                                                                         use_ref_pdb,
+                                                                         clash_threshold_af2chi) #sc
 
                 if no_ensemble: #sc
                     logger.info(f"Skipping ensemble creation for {jobname}")
                 else: #sc
-                    logger.info(f"Creating ensemble of {n_struct_ensemble} structures for {jobname}") #sc
                     if no_reweight: #sc
                         production_pool=ensemble_creator(query_sequence, sc_backbone, sc_angles, prior_pops_residues, jobname) #sc
                     else: #sc
@@ -1783,6 +1784,129 @@ def set_model_type(is_complex: bool, model_type: str) -> str:
         else:
             model_type = "alphafold2_ptm"
     return model_type
+
+################################################################## #sc
+# AF2chi run presets                                               #sc
+################################################################## #sc
+# Each preset expands a single CLI flag into the full set of options
+# of a standard AF2chi run. The only user input is the template path.
+AF2CHI_PRESETS = {  ##sc
+    "af2chi_backbone": {
+        "af2chi": True,
+        "templates": True,
+        "msa_mode": "single_sequence",
+        "model_order": "1,2",
+        "generate_from_templates": False,
+        "n_struct_ensemble": 100,
+    },
+    "af2chi_ensemble": {
+        "af2chi": True,
+        "templates": True,
+        "msa_mode": "single_sequence",
+        "model_order": "1,2",
+        "generate_from_templates": True,
+        "n_struct_ensemble": 100,
+    },
+}
+
+# Every entry above is a plain default that the user can override on the command
+# line. The presets never adjust one option because of another: this table is
+# only used to write a warning when --msa-mode is changed and --model-order was
+# left at the preset value, since the two usually go together.
+AF2CHI_MODEL_ORDER_HINT = {  ##sc
+    "single_sequence": "1,2",
+    "mmseqs2_uniref": "3,4,5",
+    "mmseqs2_uniref_env": "3,4,5",
+    "mmseqs2_uniref_env_envpair": "3,4,5",
+}
+
+# Options that define the mode itself: always forced by the preset.
+# Everything else in the table is a default the user can still override
+# on the command line (e.g. --n-struct-ensemble 500).
+AF2CHI_PRESET_FORCED = {"af2chi", "templates", "generate_from_templates"}  ##sc
+
+
+def _cli_provided(parser, argv=None):  ##sc
+    """dest names of the options actually typed on the command line."""
+    argv = sys.argv[1:] if argv is None else argv
+    tokens = {a.split("=", 1)[0] for a in argv if a.startswith("-")}
+    provided = set()
+    for action in parser._actions:
+        for opt in action.option_strings:
+            # exact match, or an unambiguous abbreviation such as --n-struct
+            if opt in tokens or any(t.startswith("--") and opt.startswith(t) for t in tokens):
+                provided.add(action.dest)
+    return provided
+
+
+def apply_af2chi_preset(args, parser):  ##sc
+    """Expand --af2chi-backbone / --af2chi-ensemble into the individual options."""
+    active = [name for name in AF2CHI_PRESETS if getattr(args, name, None) is not None]
+    if not active:
+        return args
+    if len(active) > 1:  # also guarded by the mutually exclusive group
+        raise RuntimeError("--af2chi-backbone and --af2chi-ensemble are mutually exclusive.")
+
+    preset_name = active[0]
+    cli_name = "--" + preset_name.replace("_", "-")
+    template_path = Path(getattr(args, preset_name)).expanduser()
+
+    # sanity checks on the template directory
+    if not template_path.is_dir():
+        raise RuntimeError(f"{cli_name}: template directory not found: {template_path}")
+    n_templates = len(list(template_path.glob("*.pdb"))) + len(list(template_path.glob("*.cif")))
+    if n_templates == 0:
+        raise RuntimeError(f"{cli_name}: no .pdb/.cif template files found in {template_path}")
+    if preset_name == "af2chi_ensemble" and n_templates == 1:
+        logger.warning(
+            f"{cli_name}: only one template found in {template_path}, but this mode is meant to "
+            "reweight a template ensemble."
+        )
+
+    # the preset owns the template path
+    if args.pdb_hit_file is not None:
+        raise RuntimeError(f"{cli_name} sets the custom template path and cannot be used with --pdb-hit-file.")
+    if args.custom_template_path is not None and Path(args.custom_template_path).expanduser() != template_path:
+        raise RuntimeError(
+            f"{cli_name} conflicts with --custom-template-path ({args.custom_template_path})."
+        )
+    args.custom_template_path = str(template_path)
+
+    provided = _cli_provided(parser) ##sc
+    for key, value in AF2CHI_PRESETS[preset_name].items():
+        current = getattr(args, key)
+        if key in AF2CHI_PRESET_FORCED:
+            if key in provided and current != value:
+                logger.warning(
+                    f"{cli_name} forces --{key.replace('_', '-')}={value}, ignoring the value you gave "
+                    f"({current}). Drop {cli_name} and set the options individually if that is not what you want."
+                )
+        elif key in provided:
+            logger.info(
+                f"{cli_name}: keeping user value --{key.replace('_', '-')}={current} "
+                f"(preset value: {value})"
+            )
+            continue
+        setattr(args, key, value)
+
+    # the presets do not couple options: if the MSA mode is changed, the model
+    # order stays at the preset value unless the user changes it too, so warn.
+    preset_msa_mode = AF2CHI_PRESETS[preset_name]["msa_mode"]
+    if args.msa_mode != preset_msa_mode and "model_order" not in provided:
+        hint = AF2CHI_MODEL_ORDER_HINT.get(args.msa_mode)
+        logger.warning(
+            f"{cli_name}: --msa-mode is {args.msa_mode} but --model-order is still the preset value "
+            f"{args.model_order}. The preset does not adjust it for you"
+            + (f"; --model-order {hint} is the usual choice for this MSA mode." if hint else ".")
+        )
+
+    logger.info(
+        f"{cli_name}: af2chi on, templates from {template_path}, msa-mode {args.msa_mode}, "
+        f"model-order {args.model_order}, generate-from-templates {args.generate_from_templates}, "
+        f"ensemble size {args.n_struct_ensemble}"
+    )
+    return args
+
 
 def main():
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
@@ -2159,6 +2283,38 @@ def main():
         help="Use templates to generate backbones for af2chi ensemble.",
     )
 
+    af2chi_group.add_argument(
+        "--clash-threshold",##sc
+        default=0.8,
+        type=float,
+        help="Heavy-atom clash cutoff: atoms clash if distance < FACTOR*(r_i+r_j). Higher = stricter. Usable range: 0.65-0.80. Default is 0.8",
+    )
+
+    af2chi_presets = af2chi_group.add_mutually_exclusive_group() ##sc
+    af2chi_presets.add_argument(
+        "--af2chi-backbone", ##sc
+        metavar="TEMPLATE_PATH",
+        type=str,
+        default=None,
+        help="Standard AF2chi run on a single backbone: shortcut for "
+        "'--af2chi --templates --custom-template-path TEMPLATE_PATH --msa-mode single_sequence "
+        f"--model-order 1,2 --n-struct-ensemble {AF2CHI_PRESETS['af2chi_backbone']['n_struct_ensemble']}'. "
+        "These are defaults only: --msa-mode, --model-order and --n-struct-ensemble given on the command "
+        "line take precedence, and are not adjusted for each other.",
+    )
+    af2chi_presets.add_argument(
+        "--af2chi-ensemble", ##sc
+        metavar="TEMPLATE_PATH",
+        type=str,
+        default=None,
+        help="Standard AF2chi run reweighting a template ensemble: shortcut for "
+        "'--af2chi --templates --custom-template-path TEMPLATE_PATH --msa-mode single_sequence "
+        f"--model-order 1,2 --generate-from-templates --n-struct-ensemble {AF2CHI_PRESETS['af2chi_ensemble']['n_struct_ensemble']}'. "
+        "TEMPLATE_PATH must contain the conformational ensemble. "
+        "These are defaults only: --msa-mode, --model-order and --n-struct-ensemble given on the command "
+        "line take precedence, and are not adjusted for each other.",
+    )
+
     args = parser.parse_args()
 
     if (args.custom_template_path is not None) and (args.pdb_hit_file is not None):
@@ -2176,6 +2332,8 @@ def main():
         version += f" ({commit})"
 
     logger.info(f"Running colabfold {version}")
+
+    args = apply_af2chi_preset(args, parser) ##sc
 
     data_dir = Path(args.data or default_data_dir)
 
@@ -2254,6 +2412,7 @@ def main():
         n_struct_ensemble=args.n_struct_ensemble, ##sc
         custom_prior=args.custom_prior, ##sc
         generate_from_templates=args.generate_from_templates, ##sc
+        clash_threshold_af2chi=args.clash_threshold ##sc
     )
 
 if __name__ == "__main__":

@@ -20,11 +20,13 @@ Supporting functions
 * ``relax_sidechains``      – Wrapper around Amber relaxation.
 * ``compute_rmsd_to_reference_biopython`` – Backbone RMSD via Biopython.
 * ``count_clashes``         – Steric-clash counter using a KD-tree.
+* ``report_clashes``         – Steric-clash checker. Not in use in main code at the moment
 * Various small helpers: ``get_config``, ``class_to_np``, ``seq2seq``, etc.
 """
 
 import os
 import warnings
+import logging ##sc
 from dataclasses import dataclass, field
 from multiprocessing import Pool
 from pathlib import Path
@@ -63,6 +65,8 @@ from alphafold.model.geometry.rigid_matrix_vector import Rigid3Array
 
 import colabfold.relax_sc as relax
 from colabfold.download import default_data_dir
+
+logger = logging.getLogger(__name__) ##sc
 
 # ---------------------------------------------------------------------------
 # Type aliases
@@ -321,7 +325,7 @@ def relax_sidechains(
     config=None,
     pdb_lines=None,
     pdb_obj=None,
-    use_gpu: bool = False,
+    use_gpu: bool = True,
     max_iterations: int = 0,
     stiffness: float = 1.0,
 ):
@@ -974,6 +978,7 @@ class create_pdb_ensemble:
         is_complex: bool = False,
         stiffness: float = 1.0,
         use_ref: bool = True,
+        clash_threshold: float = 0.8
     ):
         self.config = config
         self.pdb_input_features = results["input_features"]
@@ -984,6 +989,7 @@ class create_pdb_ensemble:
         self.is_complex = is_complex
         self.stiffness = stiffness
         self.use_ref = use_ref
+        self.clash_threshold = clash_threshold
 
     def __call__(
         self,
@@ -1025,7 +1031,12 @@ class create_pdb_ensemble:
         production_pool = []
         max_size_try = 3 * self.config.n_struct_ensemble
 
-        print(f"Generating ensemble of {self.config.n_struct_ensemble} structures")
+        logger.info(f"Generating ensemble of {self.config.n_struct_ensemble} structures for {jobname}") ##sc
+        if self.use_ref: ##sc
+            logger.info("Backbone source: single template backbone (AF2 prediction, RMSD measured against the input template)") ##sc
+        else: ##sc
+            logger.info(f"Backbone source: template ensemble ({len(r3_bb_list)} backbones, sampled uniformly)") ##sc
+        logger.info(f"Clash threshold: {self.clash_threshold}") ##sc
 
         while ensemble < self.config.n_struct_ensemble:
             if len(r3_bb_list) > 1:
@@ -1039,7 +1050,7 @@ class create_pdb_ensemble:
             print(f">>> Generating ensemble structure {ensemble} ...")
             production_pool.append(
                 self.ensemble_creation_iteration(
-                    sequence, aatype, r3_bb, angles, fitted_pops, jobname, ensemble, self.use_ref
+                    sequence, aatype, r3_bb, angles, fitted_pops, jobname, ensemble, self.use_ref,self.clash_threshold
                 )
             )
             if production_pool[-1]:
@@ -1221,6 +1232,7 @@ class create_pdb_ensemble:
         jobname: str,
         ensemble: int,
         use_ref: bool,
+        clash_overlap_threhold:float
     ) -> bool:
         """Generate, relax, and validate a single ensemble member.
 
@@ -1267,21 +1279,21 @@ class create_pdb_ensemble:
         )
 
         Path(unrelaxed_path).write_text(pdb_lines)
-        check_clashes = count_clashes(unrelaxed_path)
+        check_clashes = count_clashes(unrelaxed_path,clash_overlap_threhold)
         print(f"non-relaxed structure clashes: {check_clashes}")
 
         relaxed_pdb_lines = relax_sidechains(
             pdb_lines=pdb_lines,
             sampled_angles=sampled_angles,
             config=self.config,
-            use_gpu=self.config.use_gpu_relax,
+            use_gpu=getattr(self.config, "use_gpu_relax", True),
             max_iterations=0,
             stiffness=self.stiffness,
         )
         Path(relaxed_path).write_text(relaxed_pdb_lines)
 
-        check_clashes = count_clashes(relaxed_path)
-
+        check_clashes = count_clashes(relaxed_path,clash_overlap_threhold)
+        
         if use_ref:
             print("Computing RMSD to input template structure")
             rmsd = compute_rmsd_to_reference_biopython(
@@ -1554,7 +1566,7 @@ def compute_rmsd_to_reference_biopython(reference_pdb, target_pdb) -> float:
 # Clash detection
 # ---------------------------------------------------------------------------
 
-def count_clashes(structure_path, clash_cutoff: float = 0.65) -> int:
+def count_clashes(structure_path, clash_cutoff: float = 0.65) -> int: # default 0.65 
     """Count steric clashes in a PDB structure using a KD-tree.
 
     Clashes within the same residue, across peptide bonds, and in
@@ -1583,7 +1595,15 @@ def count_clashes(structure_path, clash_cutoff: float = 0.65) -> int:
         "CL": 1.75,
         "MG": 1.73,
     }
-
+    # Backbone pairs between sequence-adjacent residues that are fixed by ##sept26
+    # peptide geometry (1,2 bond + 1,3 neighbours). These are not clashes.
+    backbone_bonded_pairs = {
+        frozenset(("C",  "N")),    # 1,2 peptide bond
+        frozenset(("O",  "N")),    # 1,3: O(i)···N(i+1)
+        frozenset(("CA", "N")),    # 1,3: CA(i)···N(i+1)
+        frozenset(("C",  "CA")),   # 1,3: C(i)···CA(i+1)
+        frozenset(("C",  "CD")),   # 1,3: C(i)···CD(Pro i+1)  — proline ring closes on N
+    }
     clash_cutoffs = {
         f"{i}_{j}": clash_cutoff * (atom_radii[i] + atom_radii[j])
         for i in atom_radii
@@ -1606,21 +1626,21 @@ def count_clashes(structure_path, clash_cutoff: float = 0.65) -> int:
 
         for ix, atom_distance in potential_clash:
             atom_2 = atoms[ix]
+            
+            if atom_1.parent is atom_2.parent:
+                continue
 
-            # Skip intra-residue contacts.
-            if atom_1.parent.id == atom_2.parent.id:
+            res1, res2 = atom_1.parent, atom_2.parent
+            same_chain = res1.parent.id == res2.parent.id
+            adjacent = same_chain and abs(res1.id[1] - res2.id[1]) == 1
+
+            # Skip fixed backbone geometry across adjacent residues (1,2 and 1,3).
+            if adjacent and frozenset((atom_1.name, atom_2.name)) in backbone_bonded_pairs:
                 continue
-            # Skip peptide-bond N–C contacts.
-            if (atom_2.name == "C" and atom_1.name == "N") or (
-                atom_2.name == "N" and atom_1.name == "C"
-            ):
-                continue
-            # Skip disulphide bridges (SG–SG ≤ 2.05 Å is a bond, not a clash).
-            if (
-                atom_2.name == "SG"
-                and atom_1.name == "SG"
-                and atom_distance > 1.88
-            ):
+
+            # Skip disulphide bridges (SG–SG bond, not a clash).
+            if (atom_2.name == "SG" and atom_1.name == "SG"
+                    and atom_distance > 1.88):
                 continue
 
             if atom_distance < clash_cutoffs[atom_2.element + "_" + atom_1.element]:
@@ -1628,6 +1648,63 @@ def count_clashes(structure_path, clash_cutoff: float = 0.65) -> int:
 
     return len(clashes) // 2
 
+## helper function to detect bonded clashes. It's off by default.
+def report_clashes(structure_path, clash_cutoff: float = 0.75):
+    """Like count_clashes, but prints the identity of every clashing pair."""
+    import numpy as np
+    from Bio import PDB
+
+    atom_radii = {"C":1.70,"N":1.55,"O":1.52,"S":1.80,"F":1.47,"P":1.80,"CL":1.75,"MG":1.73}
+    cutoffs = {f"{i}_{j}": clash_cutoff*(atom_radii[i]+atom_radii[j])
+               for i in atom_radii for j in atom_radii}
+
+    backbone_bonded_pairs = {
+        frozenset(("C",  "N")),    # 1,2 peptide bond
+        frozenset(("O",  "N")),    # 1,3: O(i)···N(i+1)
+        frozenset(("CA", "N")),    # 1,3: CA(i)···N(i+1)
+        frozenset(("C",  "CA")),   # 1,3: C(i)···CA(i+1)
+        frozenset(("C",  "CD")),   # 1,3: C(i)···CD(Pro i+1)  — proline ring closes on N
+    }
+
+    struct = PDB.PDBParser(QUIET=True).get_structure("s", structure_path)
+    atoms = [a for a in struct.get_atoms() if a.element in atom_radii]
+    coords = np.array([a.coord for a in atoms], dtype="d")
+    kdt = PDB.kdtrees.KDTree(coords)
+    max_cut = max(cutoffs.values())
+
+    def tag(atom):
+        res = atom.parent
+        chain = res.parent.id
+        return f"{chain}/{res.resname}{res.id[1]}:{atom.name}"
+
+    seen = set()
+    clashes = []
+    for i, a1 in enumerate(atoms):
+        for hit in kdt.search(np.array(a1.coord, dtype="d"), max_cut):
+            j = hit.index
+            if j <= i:
+                continue                      # each pair once, skip self
+            a2 = atoms[j]
+
+            if a1.parent is a2.parent:        # intra-residue
+                continue
+            res1, res2 = a1.parent, a2.parent
+            same_chain = res1.parent.id == res2.parent.id
+            adjacent = same_chain and abs(res1.id[1] - res2.id[1]) == 1
+            if adjacent and frozenset((a1.name, a2.name)) in backbone_bonded_pairs:
+                continue
+            if a1.name == "SG" and a2.name == "SG" and hit.radius > 1.88:
+                continue
+
+            cut = cutoffs[a2.element + "_" + a1.element]
+            if hit.radius < cut:
+                clashes.append((tag(a1), tag(a2), hit.radius, cut))
+
+    print(f"\n=== {len(clashes)} clash(es) in {structure_path} (cutoff={clash_cutoff}) ===")
+    for t1, t2, d, cut in sorted(clashes, key=lambda x: x[2]):
+        overlap = cut - d
+        print(f"  {t1:22s} <-> {t2:22s}  dist={d:5.2f}  cut={cut:5.2f}  overlap={overlap:4.2f}")
+    return clashes
 
 # ---------------------------------------------------------------------------
 # Template feature store
