@@ -132,6 +132,12 @@ AF2chi:
 
   --af2chi              run af2chi to predict sidechain populations and generate a structural
                         ensemble with sidechain predictions (default: False)
+  --af2chi-backbone TEMPLATE_PATH
+                        Standard AF2chi run on a single backbone (preset, see below)
+                        (default: None)
+  --af2chi-ensemble TEMPLATE_PATH
+                        Standard AF2chi run reweighting a template ensemble (preset, see below)
+                        (default: None)
   --no-reweight         run af2chis production on prior library, don't apply re-weighting
                         (default: False)
   --no-ensemble         do not create ensemble of pdb with sidechain predictions, only save the
@@ -152,12 +158,7 @@ AF2chi:
   --clash-threshold CLASH_THRESHOLD
                         Heavy-atom clash cutoff: atoms clash if distance < FACTOR*(r_i+r_j).
                         Higher = stricter. Usable range: 0.65-0.80. (default: 0.8)
-  --af2chi-backbone TEMPLATE_PATH
-                        Standard AF2chi run on a single backbone (preset, see below)
-                        (default: None)
-  --af2chi-ensemble TEMPLATE_PATH
-                        Standard AF2chi run reweighting a template ensemble (preset, see below)
-                        (default: None)
+
 ```
 
 The different options allow you to run the AF2χ pipeline either partially or fully. You can also adjust several parameters, including the number of output structures in the final ensemble.
