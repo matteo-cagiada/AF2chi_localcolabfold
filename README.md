@@ -229,19 +229,15 @@ colabfold_batch --af2chi-backbone ../templates/ \
 
 ### ⚠️ Template input
 
-1. AF2 accepts only mmCIF (.cif) files as input templates. You can download .cif files directly from the RCSB PDB, or convert your .pdb files using:
+1. AF2 accepts only mmCIF (.cif) files as input templates. You can download .cif files directly from the RCSB PDB. If you have. a.pdb you NEED to convert to .cif first.
+    
+3. **Folder & naming:** the template files must be placed inside their own folder and named using 4 lowercase letters/numbers, following classic PDB naming conventions.
 
-   - [pdb-extract](https://pdb-extract.wwpdb.org/) (official)
-   - [Neurosnap](https://neurosnap.ai/service/PDB-mmCIF%20Converter)
-   - [PDBtools](https://www.bonvinlab.org/pdb-tools/)
+4. **Multiple templates & complexes:** there are no restrictions on the number of input templates, however if either  `--af2chi-ensemble` or  `generate-from-templates` is not set AF2 will automatically use the first compatible structure that aligns with the query sequence. Complex structures can also be used as templates.
 
-2. **Folder & naming:** the template files must be placed inside their own folder and named using 4 lowercase letters/numbers, following classic PDB naming conventions.
+**For `--af2chi-ensemble`:** every conformer of your ensemble goes in the same folder, one file per conformer, each with its own 4-character name. AF2χ reports how many backbones it loaded at the start of ensemble generation: check that number matches your ensemble size, since a conformer that fails to parse is skipped with a warning.
 
-3. **Multiple templates & complexes:** there are no restrictions on the number of input templates. AF2 will automatically use any compatible structure that aligns with the query sequence. Complex structures can also be used as templates.
-
-4. **For `--af2chi-ensemble`:** every conformer of your ensemble goes in the same folder, one file per conformer, each with its own 4-character name. AF2χ reports how many backbones it loaded at the start of ensemble generation — check that number matches your ensemble size, since a conformer that fails to parse is skipped with a warning.
-
-5. **Building the folder automatically:** if your ensemble comes from MD, from NMR models, or from any set of PDB files, use `tools/traj2af2chi.py` instead of converting by hand — see the next section.
+**Building the folder automatically:** if your ensemble comes from MD, from NMR models, or from any set of PDB files, use `tools/traj2af2chi.py` instead of converting by hand — see the next section.
 
 ### 🧬 Complexes
 
