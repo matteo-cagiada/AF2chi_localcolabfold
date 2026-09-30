@@ -1,0 +1,6 @@
+localcolabfold/
+*.log
+*.sif
+*.tar
+weights/
+out/
