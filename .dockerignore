@@ -13,3 +13,6 @@ README.md
 CONTAINER.md
 Containerfile.inline
 af2chi.def
+tools
+install_af2chi_tools.sh
+af2chi-tools-env
