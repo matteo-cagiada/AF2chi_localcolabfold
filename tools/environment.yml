@@ -1,0 +1,21 @@
+# Lightweight environment for the AF2chi helper tools (traj2af2chi.py).
+#
+#   conda env create -f tools/environment.yml
+#   conda activate af2chi-tools
+#   python tools/traj2af2chi.py -x traj.xtc -t topol.tpr -s 10 -o templates/
+#
+# Keep this separate from the AF2chi environment: MDAnalysis pulls in its own
+# numpy/scipy constraints, and the AF2chi environment has a fragile set of
+# jax / tensorflow / flax pins that is not worth disturbing for a conversion
+# script that runs once per ensemble.
+#
+# PDB input (-p) needs only Biopython, which the AF2chi environment already
+# has, so this environment is only required for trajectory input.
+
+name: af2chi-tools
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - biopython
+  - mdanalysis
