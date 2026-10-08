@@ -34,6 +34,16 @@
 #  Example: weights on a shared filesystem rather than your home directory
 #
 #      AF2CHI_CACHE=/ceph/group/alphafold-weights ./run_af2chi.sh --af2chi in.fasta out/
+#
+#  Notes
+#  -----
+#  * The directory you launch from is mounted as the container's working
+#    directory, so relative paths behave as they do in a native install. An
+#    argument that points outside it (../data/in.fasta, or an absolute path such
+#    as --data /shared/weights) is detected and bound as well, with the argument
+#    rewritten to the path it has inside the container.
+#  * Engine autodetection prefers podman. On a host with both podman and
+#    apptainer, pass --engine apptainer to use a .sif.
 # =============================================================================
 
 set -euo pipefail
@@ -87,7 +97,7 @@ fi
 # --- image -------------------------------------------------------------------
 case "$ENGINE" in
     apptainer|singularity) DEFAULT_IMAGE="./af2chi.sif" ;;
-    *)                     DEFAULT_IMAGE="af2chi:1.0" ;;
+    *)                     DEFAULT_IMAGE="ghcr.io/matteo-cagiada/af2chi:1.0" ;;
 esac
 IMAGE="${CLI_IMAGE:-${AF2CHI_IMAGE:-$DEFAULT_IMAGE}}"
 
@@ -104,6 +114,78 @@ fi
 
 WORKDIR="$(pwd)"
 GPU="${CLI_GPU:-${AF2CHI_GPU:-1}}"
+
+# --- make paths outside the working directory reachable ----------------------
+# Only the working directory is mounted, so an argument such as
+# ../data/input.fasta would not exist inside the container. Find those, bind
+# the directory holding them at the same absolute path, and rewrite the
+# argument to match, so relative paths that climb out still work.
+
+abspath() {
+    if realpath -m / >/dev/null 2>&1; then
+        realpath -m "$1"
+    else
+        python3 -c 'import os,sys; print(os.path.abspath(sys.argv[1]))' "$1"
+    fi
+}
+
+NEW_ARGS=()
+AUTO_DIRS=()
+for arg in "$@"; do
+    # options and option=value pairs are never paths
+    case "$arg" in
+        -*) NEW_ARGS+=("$arg"); continue ;;
+    esac
+
+    # treat the argument as a path only if it exists, or looks like one whose
+    # parent directory exists: this leaves values such as "1,2" or "50" alone
+    if [ ! -e "$arg" ]; then
+        case "$arg" in
+            */*) if [ ! -d "$(dirname "$arg")" ]; then NEW_ARGS+=("$arg"); continue; fi ;;
+            *)   NEW_ARGS+=("$arg"); continue ;;
+        esac
+    fi
+
+    resolved="$(abspath "$arg")"
+    case "$resolved/" in
+        "$WORKDIR"/*) NEW_ARGS+=("$arg"); continue ;;   # already inside the mount
+    esac
+
+    if [ -d "$resolved" ]; then
+        host_dir="$resolved"
+    else
+        host_dir="$(dirname "$resolved")"
+    fi
+    AUTO_DIRS+=("$host_dir")
+    NEW_ARGS+=("$resolved")
+done
+
+# drop any directory already covered by another one in the list, so a path and
+# its parent do not both get bound
+n_auto=0
+for d in ${AUTO_DIRS+"${AUTO_DIRS[@]}"}; do
+    covered=0
+    for e in ${AUTO_DIRS+"${AUTO_DIRS[@]}"}; do
+        if [ "$d" = "$e" ]; then continue; fi
+        case "$d/" in
+            "$e"/*) covered=1 ;;
+        esac
+    done
+    if [ "$covered" -eq 1 ]; then continue; fi
+    already=0
+    for m in ${CLI_MOUNTS+"${CLI_MOUNTS[@]}"}; do
+        if [ "${m%%:*}" = "$d" ]; then already=1; fi
+    done
+    if [ "$already" -eq 1 ]; then continue; fi
+    CLI_MOUNTS+=("$d:$d")
+    n_auto=$((n_auto + 1))
+    echo "[af2chi] $d is outside the working directory: binding it as well"
+done
+
+if [ "$n_auto" -gt 0 ]; then
+    echo "[af2chi] (launch from a directory holding every input and output to avoid this)"
+fi
+set -- ${NEW_ARGS+"${NEW_ARGS[@]}"}
 
 # --- build the command -------------------------------------------------------
 case "$ENGINE" in
