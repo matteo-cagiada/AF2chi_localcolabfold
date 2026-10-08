@@ -409,7 +409,7 @@ apptainer build af2chi.sif docker://ghcr.io/matteo-cagiada/af2chi:1.0
 
 ### 🔹 Run it
 
-The simplest way is the wrapper script in this repository. It detects the engine, mounts the current directory, and passes everything through to `colabfold_batch`:
+The simplest way is the wrapper script in this repository. It mounts the current directory into the container and passes everything through to `colabfold_batch`:
 
 ```bash
 ./run_af2chi.sh --cache /path/to/weights --af2chi-backbone templates/ input.fasta results/
@@ -417,12 +417,38 @@ The simplest way is the wrapper script in this repository. It detects the engine
 ./run_af2chi.sh --cache /path/to/weights --af2chi input.fasta results/
 ```
 
+> ⚠️ **Two things worth knowing the first time.**
+>
+> 1. **Paths are relative to the directory you launch from**, which is what the container sees as its working directory. Pointing outside it (`../UBQ/input.fasta`, or `--data /shared/weights`) is fine — the wrapper notices, binds that location too, and says so — but the tidiest setup is to launch from a directory that holds the inputs, the templates and the output location.
+> 2. **Pick the engine explicitly if you have more than one.** Autodetection prefers Podman, so on a machine with both Podman and Apptainer installed, pass `--engine apptainer` to use the `.sif`.
+
+A worked example. From a directory holding the repository, the inputs and the image side by side:
+
+```
+.
+├── AF2chi_localcolabfold/      # the repository, with run_af2chi.sh
+│   └── af2_weights/            # the weights cache (created on first run)
+├── af2chi.sif                  # the image
+└── UBQ/
+    ├── templates/
+    └── rcsb_pdb_1UBI.fasta
+```
+
+```bash
+AF2chi_localcolabfold/run_af2chi.sh \
+    --engine apptainer \
+    --cache AF2chi_localcolabfold/af2_weights \
+    --af2chi-backbone UBQ/templates/ UBQ/rcsb_pdb_1UBI.fasta UBQ/results
+```
+
+Every path is relative to the directory you launched from, exactly as in a native install. `--image` is not needed here: with `--engine apptainer` the wrapper looks for `./af2chi.sif`, and for the other engines it defaults to the published image. Writing `colabfold_batch` before the AF2χ options is also accepted, if you prefer being explicit.
+
 | Wrapper option | Meaning |
 | --- | --- |
 | `--cache PATH` | where the AlphaFold2 weights are kept on the host (downloaded there on first use) |
-| `--image REF` | image reference, or path to a `.sif` |
-| `--engine NAME` | `docker`, `podman` or `apptainer` (autodetected otherwise) |
-| `--mount HOST:CONT` | extra bind mount, repeatable |
+| `--image REF` | image reference, or path to a `.sif` (default: `./af2chi.sif` for Apptainer, the published image otherwise) |
+| `--engine NAME` | `docker`, `podman` or `apptainer`. Autodetection prefers Podman, so set this when several are installed |
+| `--mount HOST:CONT` | make another host directory visible inside the container, repeatable |
 | `--cpu` | run without a GPU |
 | `--dry-run` | print the command instead of running it |
 
@@ -462,7 +488,7 @@ apptainer run --nv \
     --af2chi-backbone templates/ input.fasta results/
 ```
 
-`/cache` and `/work` are paths *inside* the container; the host side is yours to choose. The current directory is mounted as `/work`, so relative paths behave as in a native install.
+`/cache` and `/work` are paths *inside* the container; the host side is yours to choose. The current directory is mounted as `/work`, so relative paths behave as in a native install — and, for the same reason, files outside it are not reachable unless you bind them as well.
 
 </details>
 
@@ -483,6 +509,64 @@ Three ways to provide them:
 | Apptainer | NVIDIA driver only | `--nv` |
 
 On clusters where you cannot install the container toolkit, use Apptainer: `--nv` needs nothing beyond the driver that is already there.
+
+### 🔹 Podman: first-time setup
+
+Rootless Podman works well on clusters, but a few host settings usually need fixing once. Run the checks first and only apply the fixes you need.
+
+```bash
+podman info --format '{{.Host.IDMappings}}'     # must list UID/GID map entries
+podman info --format '{{.Store.GraphRoot}}'     # where images are stored
+podman info --format '{{.Host.CgroupManager}}'
+```
+
+**No ID mappings / `newuidmap` errors.** Your account has no subordinate UID range, and rootless containers cannot start without one. Only an administrator can add it:
+
+```bash
+sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 <user>
+```
+
+**`lsetxattr ... operation not supported`, or a warning that the backing store is a network file system.** Podman's `overlay` driver needs extended attributes, which NFS, Lustre and GPFS do not provide. Point the image store at local disk:
+
+```bash
+mkdir -p ~/.config/containers
+cat > ~/.config/containers/storage.conf <<'EOF'
+[storage]
+driver = "overlay"
+graphroot = "/local/scratch/$USER/containers"
+runroot   = "/local/scratch/$USER/containers-run"
+EOF
+podman system reset -f
+```
+
+Allow ~15 GB there. If no local disk is available, `driver = "vfs"` works on network storage at the cost of roughly double the space and a slower pull.
+
+**`lstat /run/user/<uid>: no such file or directory`.** The session has no systemd user runtime directory:
+
+```bash
+export XDG_RUNTIME_DIR="/local/scratch/$USER/podman-run"
+mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
+```
+
+Add that to your shell profile. `loginctl enable-linger "$USER"` is the cleaner fix where it is permitted.
+
+**`The cgroupv2 manager is set to systemd but there is no systemd user session`.** Harmless, but silenced with:
+
+```bash
+cat >> ~/.config/containers/containers.conf <<'EOF'
+[engine]
+cgroup_manager = "cgroupfs"
+events_logger = "file"
+EOF
+```
+
+**`Repo not found` on `registry.access.redhat.com`.** Podman resolved a short image name against its default registries. Always give the fully qualified reference, `ghcr.io/matteo-cagiada/af2chi:1.0`, not `af2chi:1.0`.
+
+**No way to configure the GPU.** `--device nvidia.com/gpu=all` needs the NVIDIA Container Toolkit and a CDI spec, both of which require root on the host. If you cannot get them, build or convert the image once and run it with Apptainer, whose `--nv` needs only the driver:
+
+```bash
+apptainer build af2chi.sif docker://ghcr.io/matteo-cagiada/af2chi:1.0
+```
 
 ### 🔹 Building the image yourself
 
@@ -541,6 +625,18 @@ export CUDA_VISIBLE_DEVICES=N  # Replace N with the GPU index (e.g., 0, 1, etc.)
 #### ❌ Issue: `--af2chi-ensemble` loads fewer backbones than expected
 
 ✅ **Fix:** The number of loaded backbones is logged at the start of ensemble generation. A mismatch means some conformers were skipped: check that every file is a valid mmCIF, named with 4 lowercase characters, and matches the query sequence.
+
+#### ❌ Issue (container): the input file or template folder "does not exist" inside the container
+
+✅ **Fix:** Only the directory you launched from is mounted, so a path reaching outside it is invisible to AF2χ. `run_af2chi.sh` detects and binds such paths for you; if you are calling the engine directly, either launch from a directory containing every input and output, or add the other location yourself (`-v /host/path:/host/path` for Docker and Podman, `-B` for Apptainer).
+
+#### ❌ Issue (container): the wrapper uses Podman when you wanted Apptainer
+
+✅ **Fix:** Autodetection prefers Podman. Pass `--engine apptainer` (or set `AF2CHI_ENGINE=apptainer`), which also makes `./af2chi.sif` the default image.
+
+#### ❌ Issue (container): `lsetxattr ... operation not supported` when pulling with Podman
+
+✅ **Fix:** Podman's image store is on a network filesystem, which does not support extended attributes. Move it to local disk, or switch to the `vfs` driver — see [Podman: first-time setup](#-podman-first-time-setup).
 
 #### ❌ Issue (container): `unresolvable CDI devices nvidia.com/gpu=all`
 
